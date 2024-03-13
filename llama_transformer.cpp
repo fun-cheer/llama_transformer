@@ -63,6 +63,24 @@ void rmsnorm(float *out, float *in, float *weight, int hidden_size) {
     }
 }
 
+void rotary_embedding(float *q, float *kcache, int hidden_size, int dim, int kv_dim, int pos) {
+    for (int i = 0; i < hidden_size; i+=2) {
+        int head_dim = i % dim;
+        float freq = 1.0f / powf(10000.0f, head_dim / (float)dim);
+        float val = pos * freq;
+        float fcr = cosf(val);
+        float fci = sinf(val);
+        int rotn = i < kv_dim ? 2 : 1;
+        for (int v = 0; v < rotn; v++) {
+            float* vec = v == 0 ? q : kcache;
+            float v0 = vec[i];
+            float v1 = vec[i+1];
+            vec[i]   = v0 * fcr - v1 * fci;
+            vec[i+1] = v0 * fci + v1 * fcr;
+        }
+    }
+}
+
 void matmul(float* out, float* A, float* B, int m, int n, int k) {
     for (int i = 0; i < m; i++) {
         for (int j = 0; j < n; j++) {
@@ -145,6 +163,9 @@ void silu(float *out, float *ffn1, float *ffn2, int hidden_size) {
 }
 
 void llama_transformer(llama_config *config, llama_weight *weight, llama_io *lio, int pos) {
+    int dim = config->hidden_size / config->heads;
+    int kv_dim = config->kv_hidden_size / config->kv_heads;
+
     for (int i = 0; i < config->layers; i++) {
         int offset = i * config->hidden_size;
 
@@ -159,7 +180,7 @@ void llama_transformer(llama_config *config, llama_weight *weight, llama_io *lio
         matmul(kcache, lio->rms1, wk, 1, config->kv_hidden_size, config->hidden_size);
         matmul(vcache, lio->rms1, wv, 1, config->kv_hidden_size, config->hidden_size);
 
-        // rotary embedding
+        rotary_embedding(lio->q, kcache, config->hidden_size, dim, kv_dim, pos);
 
         attention(lio->atto, lio->q, kcache, vcache, config);
 
