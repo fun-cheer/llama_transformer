@@ -159,7 +159,7 @@ void llama_transformer(llama_config *config, llama_weight *weight, llama_io *lio
         matmul(kcache, lio->rms1, wk, 1, config->kv_hidden_size, config->hidden_size);
         matmul(vcache, lio->rms1, wv, 1, config->kv_hidden_size, config->hidden_size);
 
-        // TODO rotary embedding
+        // rotary embedding
 
         attention(lio->atto, lio->q, kcache, vcache, config);
 
@@ -189,9 +189,79 @@ void llama_transformer(llama_config *config, llama_weight *weight, llama_io *lio
 }
 
 int main(int argc, char *argv[]) {
-    // TODO init
+    llama_config config;
+    llama_weight weight;
+    llama_io lio;
 
-    // TODO transformer
-  
+    config.batch = 1;
+    config.seq_len = 1;
+    config.hidden_size = 4096;
+    config.intern_size = 11008;
+    config.heads = 32;
+    config.kv_heads = 32;
+    config.kv_hidden_size = 4096;
+    config.vocab_size = 32000;
+    config.layers = 32;
+
+    weight.rms1 = (float *)malloc(config.layers * config.hidden_size * sizeof(float));
+    weight.q = (float *)malloc(config.layers * config.hidden_size * config.hidden_size * sizeof(float));
+    weight.k = (float *)malloc(config.layers * config.hidden_size * config.kv_hidden_size * sizeof(float));
+    weight.v = (float *)malloc(config.layers * config.hidden_size * config.kv_hidden_size * sizeof(float));
+    weight.proj = (float *)malloc(config.layers * config.hidden_size * config.hidden_size * sizeof(float));
+    weight.rms2 = (float *)malloc(config.layers * config.hidden_size * sizeof(float));
+    weight.ffn1 = (float *)malloc(config.layers * config.hidden_size * config.intern_size * sizeof(float));
+    weight.ffn2 = (float *)malloc(config.layers * config.hidden_size * config.intern_size * sizeof(float));
+    weight.ffn3 = (float *)malloc(config.layers * config.hidden_size * config.intern_size * sizeof(float));
+    weight.rms3 = (float *)malloc(config.hidden_size * sizeof(float));
+    weight.logits = (float *)malloc(config.vocab_size * config.hidden_size * sizeof(float));
+    weight.vocab = (float *)malloc(config.vocab_size * config.hidden_size * sizeof(float));
+
+    lio.token = (float *)malloc(config.hidden_size * sizeof(float));
+    lio.rms1 = (float *)malloc(config.hidden_size * sizeof(float));
+    lio.q = (float *)malloc(config.hidden_size * sizeof(float));
+    lio.kcache = (float *)malloc(config.layers * config.seq_len * config.hidden_size * sizeof(float));
+    lio.vcache = (float *)malloc(config.layers * config.seq_len * config.hidden_size * sizeof(float));
+    lio.atto = (float *)malloc(config.hidden_size * sizeof(float));
+    lio.proj = (float *)malloc(config.hidden_size * sizeof(float));
+    lio.rms2 = (float *)malloc(config.hidden_size * sizeof(float));
+    lio.ffn1 = (float *)malloc(config.intern_size * sizeof(float));
+    lio.ffn2 = (float *)malloc(config.intern_size * sizeof(float));
+    lio.silu = (float *)malloc(config.intern_size * sizeof(float));
+    lio.ffn3 = (float *)malloc(config.hidden_size * sizeof(float));
+    lio.rms3 = (float *)malloc(config.hidden_size * sizeof(float));
+    lio.logits = (float *)malloc(config.vocab_size * sizeof(float));
+
+    for (int pos = 0; pos < config.seq_len; pos++) {
+        llama_transformer(&config, &weight, &lio, pos);
+    }
+
+    free(lio.token);
+    free(lio.rms1);
+    free(lio.q);
+    free(lio.kcache);
+    free(lio.vcache);
+    free(lio.atto);
+    free(lio.proj);
+    free(lio.rms2);
+    free(lio.ffn1);
+    free(lio.ffn2);
+    free(lio.silu);
+    free(lio.ffn3);
+    free(lio.rms3);
+    free(lio.logits);
+
+    free(weight.rms1);
+    free(weight.q);
+    free(weight.k);
+    free(weight.v);
+    free(weight.proj);
+    free(weight.rms2);
+    free(weight.ffn1);
+    free(weight.ffn2);
+    free(weight.ffn3);
+    free(weight.rms3);
+    free(weight.logits);
+    free(weight.vocab);
+
     return 0;
 }
